@@ -1,606 +1,255 @@
-
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PROJECT: SAVINGXMAS  Desktop</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROJECT: SAVINGXMAS — Prototype</title>
 <style>
-  /* ----------------- RESET ----------------- */
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;color:#e8f7ff;background:#03121a;overflow:hidden}
-  :root{
-    --neon-blue: #00d8ff;
-    --neon-red:  #ff4b6e;
-    --neon-green:#6aff9e;
-    --glass: rgba(255,255,255,0.04);
-  }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;color:#e6eef8;background:#071020;overflow-x:hidden;position:relative}
 
-  /* ----------------- BACKGROUNDS: Rain (CSS) + snow (canvas) ----------------- */
-  /* CSS rain layer (animated vertical streaks) - covers entire UI */
-  .rain-layer{
-    position:fixed;inset:0;z-index:-1;pointer-events:none;
-    background-image:
-      linear-gradient( rgba(255,255,255,0.02) 1px, transparent 1px );
-    background-size:2px 20px;
-    opacity:0.16;
-    animation: rainShift 8s linear infinite;
-    mix-blend-mode:screen;
-  }
-  @keyframes rainShift{ 0%{background-position:0 0} 100%{background-position:1000px 1000px} }
+/* Canvas neige */
+#snowCanvas, #rainCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
 
-  /* faint colored bokeh for Xmas vibe */
-  .bokeh{
-    position:fixed;inset:0;z-index:-2;pointer-events:none;
-    background-image:
-      radial-gradient(circle at 12% 20%, rgba(0,200,255,0.04), transparent 8%),
-      radial-gradient(circle at 80% 80%, rgba(255,50,80,0.03), transparent 10%),
-      radial-gradient(circle at 60% 30%, rgba(100,255,150,0.02), transparent 12%);
-  }
+/* PRE-LOGIN */
+#prelogin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#02111a,#0a1c32);z-index:2000;}
+#prelogin button{padding:18px 28px;font-size:20px;border-radius:10px;border:2px solid #00e1ff;background:#00121a;color:#b8f7ff;cursor:pointer;transition:.25s;box-shadow:0 0 12px #00e1ff;}
+#prelogin button:hover{transform:scale(1.08);background:#002633;box-shadow:0 0 20px #00e1ff;}
 
-  /* snow canvas behind everything (z-index -3 to keep under bokeh) */
-  canvas#snowCanvas{position:fixed;inset:0;z-index:-3;pointer-events:none}
+/* PRELOADER */
+.preloader{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:linear-gradient(180deg,#02111a 0%,#071020 60%);z-index:1000}
+.console{width:min(920px,92vw);max-width:920px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(4px);padding:28px;border-radius:14px;box-shadow:0 0 25px #00f0ff99}
+.title{font-weight:700;letter-spacing:1px;margin-bottom:10px;font-size:20px;color:#9df8ff;text-shadow:0 0 10px #00eaff}
+.status{font-family:monospace;background:#00121a;padding:12px;border-radius:8px;color:#7bffb1;min-height:88px;overflow:hidden}
+.progress{height:10px;background:rgba(255,255,255,0.06);border-radius:999px;margin-top:14px;overflow:hidden;box-shadow:0 0 10px #00eaff66}
+.bar{height:100%;width:0%;background:linear-gradient(90deg,#1bd3ff,#9ef3ff,#fff)}
+.hint{font-size:13px;color:#9fb0c8}
 
-  /* ----------------- DESKTOP (Mac/dock like) ----------------- */
-  #desktop {
-    position:relative;
-    width:100%;height:100%;
-    padding:36px 36px 96px 36px;
-    display:flex;flex-wrap:wrap;align-content:flex-start;gap:18px;
-    background:linear-gradient(180deg,#03121a 0%, #041426 100%);
-  }
+/* APP */
+.app{display:none;padding:36px;min-height:100vh}
+.container{max-width:1100px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.logo{font-weight:900;color:#00eaff;text-shadow:0 0 8px #00eaff,0 0 20px #00eaff;letter-spacing:2px;font-size:26px;}
+.subtitle{color:#8faac1;text-shadow:0 0 4px #1ad2ff66}
 
-  /* ICONS */
-  .icon{
-    width:92px;height:110px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:8px;
-    cursor:pointer;color:#fff;text-align:center;
-    -webkit-user-select:none;user-select:none;
-  }
-  .icon .ico{
-    width:76px;height:76px;border-radius:14px;
-    display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border:1px solid var(--glass);
-    box-shadow: 0 8px 28px rgba(0,0,0,0.6), 0 0 18px rgba(0,200,255,0.04);
-    transition: transform .18s ease, box-shadow .18s ease, border-color .18s;
-  }
-  .icon:hover .ico{ transform: translateY(-8px); box-shadow: 0 22px 64px rgba(0,0,0,0.7), 0 0 28px rgba(255,80,120,0.06); border-color: rgba(255,255,255,0.09) }
-  .icon img{ width:46px;height:46px; }
-  .icon .label{ font-size:13px; color:#dff6ff; text-shadow:0 0 6px rgba(0,200,255,0.04) }
+/* CARDS */
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));padding:22px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:transform .18s ease,box-shadow .18s ease;text-align:center;box-shadow:0 0 20px #00eaff22;}
+.card:hover{transform:translateY(-6px) scale(1.03);box-shadow:0 0 30px #00eaff66}
+.card h3{margin-bottom:8px;color:#d6f1ff;text-shadow:0 0 6px #00eaff}
+.card p{color:#8faac1;font-size:14px}
 
-  /* RECYCLER TRASH fixed */
-  #recycle{
-    position:fixed;right:36px;bottom:98px;width:72px;height:72px;border-radius:14px;display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(180deg,#07121a,#04121a);border:1px solid var(--glass);box-shadow:0 10px 36px rgba(0,0,0,0.6),0 0 26px rgba(255,80,80,0.04);
-    cursor:pointer;z-index:40;
-  }
-  #recycle:hover{ transform:translateY(-6px); box-shadow:0 28px 68px rgba(0,0,0,0.75), 0 0 38px rgba(255,80,80,0.08) }
+/* Zone détails cristaux */
+#crystalInfo{display:none;margin-top:20px;padding:20px;background:linear-gradient(180deg,#071826,#02111a);border-radius:12px;border:1px solid rgba(255,255,255,0.05);color:#cce6ff;display:flex;align-items:flex-start;gap:20px;}
+#crystalInfo img{width:120px;border-radius:8px;flex-shrink:0;}
+#crystalInfo pre{margin:0;font-size:14px;white-space:pre-wrap;flex:1;}
+.coordonnees{margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-family:monospace;color:#ffdddd;font-size:13px;}
 
-  /* DOCK (mac-like) */
-  #dock{
-    position:fixed;left:50%;transform:translateX(-50%);bottom:20px;padding:8px 14px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
-    display:flex;gap:12px;align-items:center;border:1px solid rgba(255,255,255,0.03);box-shadow:0 12px 40px rgba(0,0,0,0.6);
-    z-index:50;
-  }
-  .dock-item{ width:64px; height:64px; border-radius:12px; display:flex;align-items:center;justify-content:center; background:#00131a; border:1px solid var(--glass); transition: transform .12s }
-  .dock-item img{width:36px}
-  .dock-item:hover{ transform:translateY(-10px) scale(1.06); box-shadow: 0 20px 64px rgba(0,0,0,0.6), 0 0 20px rgba(0,200,255,0.06) }
-
-  /* TASKBAR TOP small */
-  #topbar{ position:fixed; left:0; right:0; top:0; height:48px; display:flex;align-items:center;padding:0 18px; gap:12px;
-    background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.12)); border-bottom:1px solid rgba(255,255,255,0.02); z-index:45;
-  }
-  #topbar .brand{ color:#ffdede; font-weight:800; margin-left:6px; text-shadow:0 0 10px rgba(255,20,60,0.04) }
-  #topbar .status{ margin-left:auto; color:#9fd8ff; font-weight:600 }
-
-  /* ----------------- FULLSCREEN APP (after login) ----------------- */
-  /* We will hide .desktop and show .app-full when logged in */
-  .app-full{
-    position:fixed;inset:0;background:linear-gradient(180deg,#041426,#02111a);z-index:60;padding:28px;display:none;overflow:auto;
-  }
-  .app-full .container{ max-width:1100px;margin:0 auto;color:#dff6ff }
-  .app-full header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:20px }
-  .app-full .logo{ font-weight:900; font-size:24px; color: #fff; text-shadow: 0 0 12px rgba(255,80,120,0.06) }
-  .app-full .subtitle{ color:#9fbfd0 }
-
-  .menu{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:18px }
-  .card{
-    padding:20px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border:1px solid rgba(255,255,255,0.03); cursor:pointer; display:flex; gap:14px; align-items:center;
-    box-shadow:0 10px 30px rgba(0,0,0,0.6);
-    transition: transform .16s, box-shadow .16s;
-  }
-  .card:hover{ transform: translateY(-8px); box-shadow: 0 30px 80px rgba(0,0,0,0.7), 0 0 30px rgba(0,220,255,0.04) }
-  .card img{ width:72px; height:72px; border-radius:10px; }
-
-  /* Crystal info area */
-#crystalInfoBox {
-    margin-top: 18px;
-    display: none;
-    padding: 18px;
-    border-radius: 12px;
-    background: linear-gradient(180deg,#071826,#02111a);
-    border: 1px solid rgba(255,255,255,0.03);
-    color: #dff6ff;
-    font-family: monospace;
-    white-space: pre-wrap;   /* permet les retours à la ligne automatiques */
-    word-wrap: break-word;   /* coupe les mots trop longs */
-    overflow-wrap: break-word; /* compatibilité supplémentaire */
-    overflow-y: auto;        /* scroll vertical si le texte est trop long */
-    max-height: 400px;       /* limite la hauteur du cadre */
-}
-
-/* Texte terminal */
-#crystalInfoBox pre#termText {
-    margin: 0;
-    font-family: monospace;
-    color: #dff8ee;
-    line-height: 1.4;
-    white-space: pre-wrap;   /* important pour les retours à la ligne */
-    word-break: break-word;  /* coupe les mots trop longs */
-    overflow-wrap: break-word;
-    max-height: 350px;
-    overflow-y: auto;
-}
-
-
-  /* terminal opening effect (fade+glitch lines) */
-  .terminal-transition{ animation: terminalIn .9s ease both; }
-  @keyframes terminalIn{
-    0% { opacity:0; transform:scale(0.98) translateY(6px); filter:blur(6px) hue-rotate(10deg) contrast(0.9) }
-    50%{ opacity:1; transform:scale(1.02) translateY(-6px); filter:blur(0px) hue-rotate(-6deg) contrast(1.05) }
-    100%{ transform:scale(1) translateY(0); filter:none; opacity:1 }
-  }
-
-  /* POPUPS */
-  .popup { position:fixed; left:50%; top:40%; transform:translate(-50%,-50%); min-width:220px; padding:12px 16px; border-radius:10px; z-index:120; display:none; font-weight:700; text-align:center }
-  .popup.bad { background:#3b0000; color:#ffdede; border:2px solid #ff5a6a; box-shadow:0 10px 40px rgba(255,10,80,0.12) }
-  .popup.info { background:#00121a; color:#b8f7ff; border:2px solid var(--neon-blue); box-shadow:0 10px 40px rgba(0,200,255,0.06) }
-
-  /* TRASH WINDOW */
-  #trashWindow {
-    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:600px; max-width:96%; height:auto; max-height:70vh; 
-    background:linear-gradient(180deg,#07111a,#061420); padding:12px; border-radius:12px; border:1px solid var(--glass); z-index:130; display:none; overflow:auto;
-  }
-  #trashWindow .trash-head{ display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.02) }
-  #trashGrid{ margin-top:12px; display:grid; grid-template-columns: repeat(4,1fr); gap:10px }
-  .noteIcon{ height:68px; border-radius:8px; background:linear-gradient(180deg,#081728,#05101a); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#dff9ff; border:1px solid rgba(0,230,255,0.06) }
-  .noteIcon:hover{ transform:translateY(-6px); box-shadow:0 12px 34px rgba(0,200,255,0.06) }
-
-  /* NOTE WINDOW shown when Password opened */
-  #noteWindow {
-    position:fixed; left:50%; top:56%; transform:translate(-50%,-50%); z-index:140; display:none; padding:14px; border-radius:10px;
-    background:linear-gradient(180deg,#071826,#02111a); border:1px solid rgba(0,200,255,0.12); color:#b8f7ff; font-family:monospace; font-size:18px;
-  }
-
-  /* responsive */
-  @media (max-width:760px){
-    #trashGrid{ grid-template-columns: repeat(3,1fr) }
-    .icon{ width:76px }
-    .dock-item{ width:56px; height:56px }
-  }
+/* Footer */
+footer{margin-top:36px;color:#678aa0;font-size:13px}
 </style>
 </head>
 <body>
 
-  <!-- decorative layers -->
-  <div class="bokeh"></div>
-  <div class="rain-layer" aria-hidden="true"></div>
-  <canvas id="snowCanvas" aria-hidden="true"></canvas>
+<canvas id="snowCanvas"></canvas>
+<canvas id="rainCanvas"></canvas>
 
-  <!-- TOPBAR -->
-  <div id="topbar">
-    <div class="brand">PROJECT: SAVINGXMAS</div>
-    <div class="status" id="topStatus">Bureau</div>
+<!-- PRELOGIN -->
+<div id="prelogin">
+  <button id="enterBtn">ACCÉDER AU SERVEUR</button>
+</div>
+
+<!-- PRELOADER -->
+<div class="preloader" id="preloader">
+  <div class="console">
+    <div class="title">[Connexion sécurisée — Serveur : ARCHIVE-7]</div>
+    <div class="status"><div id="log">En attente…</div></div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="hint">Authentification en cours...</div>
   </div>
+</div>
 
-  <!-- DESKTOP ICONS -->
-  <div id="desktop" aria-hidden="false">
-    <div class="icon" id="icon-index" title="Index Cristaux">
-      <div class="ico"><img src="https://i.goopics.net/bxi0nc.png" alt=""></div>
-      <div class="label">Index Cristaux</div>
-    </div>
-
-    <div class="icon" id="icon-app1" title="Lifeinvader">
-      <div class="ico"><img src="https://i.goopics.net/9y76r9.png" alt=""></div>
-      <div class="label">App1</div>
-    </div>
-
-    <div class="icon" id="icon-app2" title="Youtube">
-      <div class="ico"><img src="https://i.goopics.net/zeqqkh.png" alt=""></div>
-      <div class="label">App2</div>
-    </div>
-
-    <div class="icon" id="icon-app3" title="Minecraft">
-      <div class="ico"><img src="https://i.goopics.net/xgm7w6.png" alt=""></div>
-      <div class="label">App3</div>
-    </div>
-  </div>
-
-  <!-- TRASH -->
-  <div id="recycle" title="Corbeille">🗑</div>
-
-  <!-- DOCK -->
-  <div id="dock" aria-hidden="false">
-    <div class="dock-item" id="dock-index" title="Index Cristaux"><img src="https://i.goopics.net/bxi0nc.png" alt=""></div>
-    <div class="dock-item" title="Finder"><img src="https://i.goopics.net/zeqqkh.png" alt=""></div>
-    <div class="dock-item" title="Settings"><img src="https://i.goopics.net/xgm7w6.png" alt=""></div>
-  </div>
-
-  <!-- POPUPS -->
-  <div id="popup" class="popup bad" role="alert" aria-hidden="true">ACCÈS INTERDIT</div>
-  <div id="popupWrong" class="popup bad" role="alert" aria-hidden="true">Code incorrect</div>
-
-  <!-- TRASH WINDOW -->
-  <div id="trashWindow" role="dialog" aria-modal="true" aria-label="Corbeille">
-    <div class="trash-head"><strong style="color:#ffdede">Corbeille</strong><button id="closeTrashBtn" style="background:none;border:0;color:var(--neon-blue);cursor:pointer">✖</button></div>
-    <div id="trashGrid"></div>
-  </div>
-
-  <!-- NOTE WINDOW (shows password) -->
-  <div id="noteWindow" role="dialog" aria-modal="true" aria-label="Note mot de passe"></div>
-
-  <!-- FULL APP (hidden until login success) -->
-  <section class="app-full" id="appFull" aria-hidden="true">
-    <div class="container">
-      <header>
-        <div>
-          <div class="logo">PROJECT: SAVINGXMAS</div>
-          <div class="subtitle">Interface d'accès  Choisissez une option</div>
-        </div>
-        <div style="text-align:right;color:#9fd8ff">Statut : <strong id="connectedTag">Hors ligne</strong></div>
-      </header>
-
-      <section id="homeApp">
-        <div class="menu">
-          <div class="card crystal-card" data-name="Cristal Vert"
-               data-desc="Le Cristal Vert est né au cœur de la Forêt Boréale, là où les sapins millénaires murmurent encore la magie ancienne. Lorsque Noël fut menacé par le Gel Sans Fin un sortilège qui voulait arrêter le temps pour empêcher la fête  le cristal libéra une énergie verte qui fit refleurir les arbres et réchauffa la Terre. Grâce à lui, les lutins retrouvèrent leur atelier enseveli sous la neige éternelle. La couleur verte représente l’espoir, la renaissance et la force de la nature qui protège Noël."
-               data-coord="Coordonnées : 47.3769° N, 7.5496° E"
-               data-img="https://i.goopics.net/bxi0nc.png">
-            <img src="https://i.goopics.net/bxi0nc.png" alt="">
-            <div><h3>Cristal Vert</h3><p>Le cristal émeraude protecteur de Noël.</p></div>
-          </div>
-
-          <div class="card crystal-card" data-name="Cristal Bleu"
-               data-desc=
-               "Au sommet du Mont Nordique, là où le vent chante entre les pics glacés, naquit le Cristal Bleu.
-                Lorsque Noël fut envahi par les Ombres Sans Lune, un brouillard obscur qui avalait la lumière, 
-                le cristal libéra une lueur bleue brillante comme mille étoiles. Cette lumière repoussa les 
-                ténèbres et ouvrit un chemin céleste permettant au traîneau du Père Noël de voyager de nouveau. 
-                Sa couleur bleue symbolise la clarté, la protection nocturne et la magie des froides nuits d’hiver."
-               data-coord="Coordonnées : 60.1699° N, 24.9384° E"
-               data-img="https://i.goopics.net/v1ft8o.png">
-            <img src="https://i.goopics.net/v1ft8o.png" alt="">
-            <div><h3>Cristal Bleu</h3><p>Protège la nuit de Noël contre les ombres.</p></div>
-          </div>
-
-          <div class="card crystal-card" data-name="Cristal Rouge"
-               data-desc="Le Cristal Rouge est l'énergie ardente du cœur de Noël, réchauffant les âmes et illuminant les fêtes. Il permet de concentrer la joie et la chaleur de Noël pour les partager avec tous. Sa couleur rouge symbolise la passion, le courage et l’énergie qui anime la fête."
-               data-coord="Coordonnées : 48.8566° N, 2.3522° E"
-               data-img="https://i.goopics.net/1txwxe.png">
-            <img src="https://i.goopics.net/1txwxe.png" alt="">
-            <div><h3>Cristal Rouge</h3><p>Énergie ardente du cœur de Noël.</p></div>
-          </div>
-
-          <div class="card crystal-card" data-name="Cristal Purpre"
-               data-desc="Amplifie et harmonise les voix pour que tout chant de Noël sonne beau et magique. Le Cristal Purpre veille à ce que chaque mélodie résonne parfaitement et que l’harmonie se diffuse dans tout le village. Il est la clé des chants enchantés de Noël."
-               data-coord="Coordonnées : 59.3293° N, 18.0686° E"
-               data-img="https://i.goopics.net/og8iri.png">
-            <img src="https://i.goopics.net/og8iri.png" alt="">
-            <div><h3>Cristal Purpre</h3><p>Harmonise les chants des fêtes.</p></div>
-          </div>
-
-          <div class="card crystal-card" data-name="Cristal Blanc"
-               data-desc="Données corrompues… système instable…"
-               data-coord="Coordonnées inconnues : ???"
-               data-img="https://i.goopics.net/moo2vc.png">
-            <img src="https://i.goopics.net/moo2vc.png" alt="">
-            <div><h3>Cristal Blanc</h3><p>Erreur système magique…</p></div>
-          </div>
-        </div>
-
-        <div id="crystalInfoBox"></div>
-      </section>
-
-      <footer style="margin-top:18px;color:#9fbfd0">SAVINGXMAS Project Noël 🎄</footer>
-    </div>
-  </section>
-
-  <!-- LOGIN OVERLAY (fullscreen modal) -->
-  <div id="loginModal" role="dialog" aria-modal="true" aria-label="Login" style="
-       position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
-       background:linear-gradient(180deg, rgba(2,6,10,0.6), rgba(2,6,10,0.45));
-  ">
-    <div style="width:520px; max-width:94%; border-radius:12px; background:linear-gradient(180deg,#07111a,#04131a); padding:16px; border:1px solid var(--glass); box-shadow:0 30px 80px rgba(0,0,0,0.7)">
-      <div style="font-weight:900;color:#ffdede;margin-bottom:10px">Connexion  Index Cristaux</div>
-      <div style="display:flex;gap:8px">
-        <input id="loginInput" type="password" placeholder="Code (trouvé sur le PC)" style="flex:1;padding:12px;border-radius:8px;border:2px solid rgba(255,255,255,0.04);background:#00121a;color:#dff6ff">
-        <button id="loginSubmit" style="padding:12px 14px;border-radius:8px;border:0;background:linear-gradient(90deg,var(--neon-red),var(--neon-blue));color:#00121a;font-weight:800;cursor:pointer">Se connecter</button>
+<!-- APP -->
+<main class="app" id="app">
+  <div class="container">
+    <header>
+      <div>
+        <div class="logo">PROJECT: SAVINGXMAS</div>
+        <div class="subtitle">Interface d'accès — Choisissez une option</div>
       </div>
-      <div style="font-size:13px;color:#9fbfd0;margin-top:8px">Mot de passe caché sur le PC. Cliquez sur l'icône Corbeille pour chercher.</div>
-      <div style="text-align:right;margin-top:8px"><button id="closeLogin" style="background:none;border:0;color:var(--neon-blue);cursor:pointer">Fermer</button></div>
-    </div>
-  </div>
+      <div style="text-align:right;color:#92c7ff">Statut : <strong id="connectedTag">En ligne</strong></div>
+    </header>
 
-  <script>
-  /* ============================
-     Config / constants
-     ============================ */
-  const PASSWORD = '1952724';
+    <section id="home">
+      <div class="menu">
+        <!-- Cristaux avec attributs pour texte + image + coordonnées -->
+        <button class="card" data-name="Cristal Vert" 
+          data-desc="Le Cristal Vert est né au cœur de la Forêt Boréale, là où les sapins millénaires murmurent encore la magie ancienne. Lorsque Noël fut menacé par le Gel Sans Fin — un sortilège qui voulait arrêter le temps pour empêcher la fête — le cristal libéra une énergie verte qui fit refleurir les arbres et réchauffa la Terre. Grâce à lui, les lutins retrouvèrent leur atelier enseveli sous la neige éternelle. La couleur verte représente l’espoir, la renaissance et la force de la nature qui protège Noël." 
+          data-coord="Coordonnées : 47.3769° N, 7.5496° E" 
+          data-img="https://i.goopics.net/bxi0nc.png">
+          <img src="https://i.goopics.net/bxi0nc.png" style="width:60px;margin:auto;">
+          <h3>Cristal Vert</h3><p>Le cristal émeraude protecteur de Noël.</p>
+        </button>
 
-  /* ----------------------------
-     Clock (topbar)
-     ---------------------------- */
-  (function clockLoop(){
-    const el = document.getElementById('topStatus');
-    function tick(){
-      const d = new Date();
-      el.textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    }
-    tick(); setInterval(tick,1000);
-  })();
+        <button class="card" data-name="Cristal Bleu" 
+          data-desc="Au sommet du Mont Nordique, là où le vent chante entre les pics glacés, naquit le Cristal Bleu. Lorsque Noël fut envahi par les Ombres Sans Lune, un brouillard obscur qui avalait la lumière, le cristal libéra une lueur bleue brillante comme mille étoiles. Cette lumière repoussa les ténèbres et ouvrit un chemin céleste permettant au traîneau du Père Noël de voyager de nouveau. Sa couleur bleue symbolise la clarté, la protection nocturne et la magie des froides nuits d’hiver." 
+          data-coord="Coordonnées : 60.1699° N, 24.9384° E" 
+          data-img="https://i.goopics.net/v1ft8o.png">
+          <img src="https://i.goopics.net/v1ft8o.png" style="width:60px;margin:auto;">
+          <h3>Cristal Bleu</h3><p>Protège la nuit de Noël contre les ombres.</p>
+        </button>
 
-  /* ----------------------------
-     Simple popup helper
-     ---------------------------- */
-  function showPopup(id, text, duration=1400){
-    const el = document.getElementById(id);
-    if(text) el.textContent = text;
-    el.style.display = 'block';
-    setTimeout(()=> el.style.display='none', duration);
-  }
+        <button class="card" data-name="Cristal Rouge" 
+          data-desc="Le Cristal Rouge est l'énergie ardente du cœur de Noël, réchauffant les âmes et illuminant les fêtes. Il permet de concentrer la joie et la chaleur de Noël pour les partager avec tous. Sa couleur rouge symbolise la passion, le courage et l’énergie qui anime la fête." 
+          data-coord="Coordonnées : 48.8566° N, 2.3522° E" 
+          data-img="https://i.goopics.net/1txwxe.png">
+          <img src="https://i.goopics.net/1txwxe.png" style="width:60px;margin:auto;">
+          <h3>Cristal Rouge</h3><p>Énergie ardente du cœur de Noël.</p>
+        </button>
 
-  /* ----------------------------
-     Desktop icons behavior
-     ---------------------------- */
-  document.getElementById('icon-app1').addEventListener('click', ()=> showPopup('popup','ACCÈS INTERDIT'));
-  document.getElementById('icon-app2').addEventListener('click', ()=> showPopup('popup','ACCÈS INTERDIT'));
-  document.getElementById('icon-app3').addEventListener('click', ()=> showPopup('popup','ACCÈS INTERDIT'));
-  document.getElementById('dock-index').addEventListener('click', ()=> openLogin() );
-  document.getElementById('icon-index').addEventListener('click', ()=> openLogin() );
+        <button class="card" data-name="Cristal Purpre" 
+          data-desc="Amplifie et harmonise les voix pour que tout chant de Noël sonne beau et magique. Le Cristal Purpre veille à ce que chaque mélodie résonne parfaitement et que l’harmonie se diffuse dans tout le village. Il est la clé des chants enchantés de Noël." 
+          data-coord="Coordonnées : 59.3293° N, 18.0686° E" 
+          data-img="https://i.goopics.net/og8iri.png">
+          <img src="https://i.goopics.net/og8iri.png" style="width:60px;margin:auto;">
+          <h3>Cristal Purpre</h3><p>Harmonise les chants des fêtes.</p>
+        </button>
 
-  /* ----------------------------
-     TRASH logic: fills grid with random note names
-     ---------------------------- */
-  const trashBtn = document.getElementById('recycle');
-  const trashWindow = document.getElementById('trashWindow');
-  const trashGrid = document.getElementById('trashGrid');
-  const noteWindow = document.getElementById('noteWindow');
-
-  function openTrash(){
-    // create grid items; ensure one labeled 'Password.txt'
-    const candidates = [
-      'old_notes.txt','reminder.doc','xmas_list.txt','todo.txt','sketch.png','ideas.md',
-      'cache.tmp','session.log','photo.jpg','list.txt','draft.docx','notes.txt','log.txt','memo.txt'
-    ];
-    trashGrid.innerHTML = '';
-    const realIdx = Math.floor(Math.random()*12);
-    for(let i=0;i<12;i++){
-      const item = document.createElement('div');
-      item.className = 'noteIcon';
-      let label = candidates[Math.floor(Math.random()*candidates.length)];
-      if(i === realIdx) label = 'Password.txt';
-      item.dataset.label = label;
-      item.title = label;
-      item.innerText = '📝';
-      // click
-      item.onclick = (ev) => {
-        ev.stopPropagation();
-        if(item.dataset.label === 'Password.txt'){
-          // show password note
-          noteWindow.style.display = 'block';
-          noteWindow.innerHTML = '<div style="font-weight:900;color:#ffdede;margin-bottom:8px">Password Note</div>'
-                              + '<div style="font-family:monospace;font-size:20px;color:#bfffdc;padding:8px;background:#00121a;border-radius:6px">'+ PASSWORD +'</div>';
-          setTimeout(()=> noteWindow.style.display='none', 5200);
-        } else {
-          // show that note is empty
-          showPopup('popup','Note vide ou illisible',1000);
-        }
-      };
-      trashGrid.appendChild(item);
-    }
-    trashWindow.style.display = 'block';
-  }
-
-  trashBtn.addEventListener('click', openTrash);
-  document.getElementById('closeTrashBtn').addEventListener('click', ()=> trashWindow.style.display='none');
-
-  /* ----------------------------
-     Login overlay handlers
-     ---------------------------- */
-  const loginModal = document.getElementById('loginModal');
-  const loginSubmit = document.getElementById('loginSubmit');
-  const loginInput = document.getElementById('loginInput');
-  const closeLogin = document.getElementById('closeLogin');
-
-  function openLogin(){ loginModal.style.display='flex'; loginInput.focus(); }
-  closeLogin.addEventListener('click', ()=> loginModal.style.display='none');
-
-  function onLoginAttempt(){
-    const val = loginInput.value.trim();
-    if(val === PASSWORD){
-      // success: hide desktop + login modal, show fullscreen app with preloader transition
-      loginModal.style.display='none';
-      // run "terminal" transition then preloader then show app fullscreen
-      showPreloaderThenApp();
-    } else {
-      // wrong: show popup wrong code (in french)
-      showPopup('popupWrong','Code incorrect',1600);
-    }
-  }
-  loginSubmit.addEventListener('click', onLoginAttempt);
-  loginInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter') onLoginAttempt(); });
-
-  /* ----------------------------
-     Preloader logic (re-using original steps but adapted)
-     ---------------------------- */
-  function showPreloaderThenApp(){
-    // hide desktop visually
-    document.getElementById('desktop').style.opacity = '0.14';
-    document.getElementById('dock').style.opacity = '0.14';
-    document.getElementById('topbar').style.opacity = '0.14';
-    document.getElementById('recycle').style.opacity = '0.14';
-    // create overlay showing console
-    const overlay = document.createElement('div');
-    overlay.style.position='fixed';overlay.style.inset='0';overlay.style.zIndex=220;
-    overlay.style.display='flex';overlay.style.alignItems='center';overlay.style.justifyContent='center';
-    overlay.style.background = 'linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.45))';
-    overlay.id = 'overlayPreloader';
-    overlay.innerHTML = `
-      <div class="console" style="width:720px">
-        <div class="title">[Connexion sécurisée  Serveur : ARCHIVE-7]</div>
-        <div class="status"><div id="prelog">En attente…</div></div>
-        <div class="progress"><div id="prebar" class="bar" style="width:0%"></div></div>
-        <div style="font-size:13px;color:#9fb0c8;margin-top:8px">Authentification en cours...</div>
+        <button class="card" data-name="Cristal Blanc" 
+          data-desc="Données corrompues… système instable…" 
+          data-coord="Coordonnées inconnues : ???" 
+          data-img="https://i.goopics.net/moo2vc.png">
+          <img src="https://i.goopics.net/moo2vc.png" style="width:60px;margin:auto;">
+          <h3>Cristal Blanc</h3><p>Erreur système magique…</p>
+        </button>
       </div>
-    `;
-    document.body.appendChild(overlay);
 
-    const steps = [
-      'Initialisation du protocole...',
-      'Authentification du client...',
-      'Vérification des clés...',
-      'Négociation sécurisée (AES-256)...',
-      'Téléchargement des meta-données...',
-      'Etablissement du tunnel sécurisé...'
-    ];
-    let idx = 0, prog = 0;
-    const prelog = document.getElementById('prelog');
-    const prebar = document.getElementById('prebar');
-    function tick(){
-      if(idx < steps.length){ prelog.innerText = steps[idx]; idx++; }
-      prog += Math.floor(Math.random()*12)+8; if(prog>100) prog=100;
-      prebar.style.width = prog + '%';
-      if(prog >= 100){
-        prelog.innerText = 'Connexion établie. Ouverture de l\'application...';
-        setTimeout(()=>{
-          // remove overlay, show appFull (use full screen exact layout)
-          overlay.remove();
-          enterFullApp();
-        }, 900);
-      } else {
-        setTimeout(tick, 500 + Math.random()*600);
+      <!-- Zone détails -->
+      <div id="crystalInfo"></div>
+    </section>
+
+    <footer>Prototype — design spécial Noël 🎄</footer>
+  </div>
+</main>
+
+<script>
+/* PRELOGIN */
+document.getElementById('enterBtn').onclick = () => {
+  document.getElementById('prelogin').style.display="none";
+  document.getElementById('preloader').style.display="flex";
+  startLoading();
+};
+
+/* PRELOADER */
+const preloader = document.getElementById('preloader');
+const bar = document.getElementById('bar');
+const log = document.getElementById('log');
+const app = document.getElementById('app');
+const connectedTag = document.getElementById('connectedTag');
+const steps = [
+  'Initialisation du protocole...',
+  'Authentification du client...',
+  'Vérification des clés...',
+  'Négociation sécurisée (AES-256)...',
+  'Téléchargement des meta-données...',
+  'Etablissement du tunnel sécurisé...'
+];
+let idx=0, progress=0;
+function startLoading(){setTimeout(advance,700);}
+function advance(){
+  if(idx<steps.length){log.innerText=steps[idx];idx++;}
+  progress+=Math.floor(Math.random()*12)+8;if(progress>100)progress=100;
+  bar.style.width=progress+'%';
+  if(progress>=100){log.innerText='Connexion établie. Redirection...';
+    setTimeout(()=>{preloader.style.opacity='0';setTimeout(()=>{preloader.remove();app.style.display='block';connectedTag.innerText='Connecté';},600);},400);
+  } else setTimeout(advance,600+Math.random()*700);
+}
+
+/* CARD → INFO (Terminal typing effect + coordonnées) */
+const info = document.getElementById('crystalInfo');
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('click', () => {
+    const name = card.dataset.name;
+    const desc = card.dataset.desc;
+    const img = card.dataset.img;
+    const coord = card.dataset.coord;
+
+    info.style.display = "flex";
+    info.innerHTML = `<img src="${img}"><pre id="loadingText"></pre><div class="coordonnees">${coord}</div>`;
+    const loadingText = document.getElementById('loadingText');
+
+    if (name === "Cristal Blanc") {
+      const lines = [
+        '[LOADING… 12%]',
+        '— ACCÈS ARCHiVE_Δ7 : ÉCHEC',
+        '— Paquet manquant : CRI5TAL_WH1TE_CORE',
+        'Fr@gm#nt_detecté : "Le C̷r̶i̸s̵t̵a̴l̴ ̷B̴l̴a̴n̶c̴ …"',
+        '>>> FICHIER ENDOMMAGÉ (0xA7-NULL)',
+        '!!! ATT3NTI0N — A L N E F F A C E R !!!',
+        'pouvoir… instab█e… lumière ou— STOP',
+        '>>> rewriting memory sector… impossible',
+        '[ERR⧖R 404 : DESCRIPTION DU CRISTAL INTROUVABLE]',
+        '[FRAGMENT FINAL] : "Ne… p4s… l’… act1v3r…"'
+      ];
+      let i = 0;
+      loadingText.innerText = '';
+      const interval = setInterval(() => {
+        if (i < lines.length) {
+          loadingText.innerText += lines[i] + '\n';
+          i++;
+        } else clearInterval(interval);
+      }, 500);
+      return;
+    }
+
+    // Texte normal lettre par lettre
+    let text = desc + '\n';
+    let idx = 0;
+    loadingText.innerText = '';
+    function typeLetter() {
+      if (idx < text.length) {
+        loadingText.innerText += text[idx];
+        idx++;
+        setTimeout(typeLetter, 20);
       }
     }
-    setTimeout(tick,700);
-  }
-
-  function enterFullApp(){
-    // hide desktop and dock entirely, show full app
-    document.getElementById('desktop').style.display='none';
-    document.getElementById('dock').style.display='none';
-    document.getElementById('topbar').style.display='none';
-    document.getElementById('recycle').style.display='none';
-    // show app
-    const appFull = document.getElementById('appFull');
-    appFull.style.display = 'block';
-    appFull.classList.add('terminal-transition');
-    document.getElementById('connectedTag').textContent = 'Connecté';
-    // ensure crystal content is ready; scroll to top
-    appFull.scrollTop = 0;
-  }
-
-  /* ----------------------------
-     Crystal card behavior: shows progressive text with terminal effect
-     ---------------------------- */
-  const crystalInfoBox = document.getElementById('crystalInfoBox');
-  document.querySelectorAll('.crystal-card').forEach(card=>{
-    card.addEventListener('click', ()=>{
-      const name = card.dataset.name;
-      const desc = card.dataset.desc;
-      const img = card.dataset.img;
-      const coord = card.dataset.coord;
-
-      // prepare box and terminal effect
-      crystalInfoBox.style.display = 'block';
-      crystalInfoBox.innerHTML = `<div style="display:flex;gap:16px;align-items:flex-start">
-        <img src="${img}" alt="${name}" style="width:120px;border-radius:10px;flex-shrink:0">
-        <div style="flex:1"><pre id="termText" style="margin:0;font-family:monospace;color:#dff8ee;line-height:1.4"></pre>
-        <div class="coord" style="margin-top:10px">${coord}</div></div>
-      </div>`;
-
-      const termText = document.getElementById('termText');
-
-      if(name === 'Cristal Blanc'){
-        const lines = [
-          '[LOADING… 12%]',
-          '— ACCÈS ARCHiVE_Δ7 : ÉCHEC',
-          '— Paquet manquant : CRI5TAL_WH1TE_CORE',
-          'Fr@gm#nt_detecté : "Le C̷r̶i̸s̵t̵a̴l̴ ̷B̴l̴a̴n̶c̴ …"',
-          '>>> FICHIER ENDOMMAGÉ (0xA7-NULL)',
-          '!!! ATT3NTI0N — A L N E F F A C E R !!!',
-          'pouvoir… instab█e… lumière ou— STOP',
-          '>>> rewriting memory sector… impossible',
-          '[ERR⧖R 404 : DESCRIPTION DU CRISTAL INTROUVABLE]',
-          '[FRAGMENT FINAL] : "Ne… p4s… l’… act1v3r…"'
-        ];
-        termText.textContent = '';
-        let i=0;
-        const itv = setInterval(()=> {
-          if(i < lines.length){ termText.textContent += lines[i] + '\\n'; i++; }
-          else clearInterval(itv);
-        }, 420);
-        return;
-      }
-
-      // normal progressive letter by letter
-      let t = desc + '\\n';
-      let p = 0;
-      termText.textContent = '';
-      (function type(){
-        if(p < t.length){ termText.textContent += t[p]; p++; setTimeout(type, 16); }
-      })();
-    });
+    typeLetter();
   });
+});
 
-  /* ----------------------------
-     Snow effect (canvas)
-     ---------------------------- */
-  (function snowLoop(){
-    const canvas = document.getElementById('snowCanvas'); const ctx = canvas.getContext('2d');
-    let W = canvas.width = window.innerWidth; let H = canvas.height = window.innerHeight;
-    window.addEventListener('resize', ()=>{ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
-    const flakes = [];
-    function makeFlake(){ return { x: Math.random()*W, y: -10, r: Math.random()*3+1, v: Math.random()*0.6 + 0.4, sway: Math.random()*1.2 } }
-    function loop(){
-      ctx.clearRect(0,0,W,H);
-      if(flakes.length < 180) flakes.push(makeFlake());
-      for(let i=0;i<flakes.length;i++){
-        const f = flakes[i];
-        f.y += f.v;
-        f.x += Math.sin(f.y/30) * 0.4;
-        ctx.beginPath();
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
-        ctx.fill();
-      }
-      // remove old
-      for(let i=flakes.length-1;i>=0;i--) if(flakes[i].y > H+10) flakes.splice(i,1);
-      requestAnimationFrame(loop);
-    }
-    loop();
-  })();
+/* SNOW CANVAS */
+const canvas=document.getElementById('snowCanvas');
+const ctx=canvas.getContext('2d');let W,H,flakes=[];
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+resize();window.onresize=resize;
+function createFlake(){return {x:Math.random()*W,y:-10,r:Math.random()*3+1,v:Math.random()*1+0.5};}
+function loopSnow(){ctx.clearRect(0,0,W,H);if(flakes.length<200)flakes.push(createFlake());for(let f of flakes){f.y+=f.v;ctx.beginPath();ctx.arc(f.x,f.y,f.r,0,6.28);ctx.fillStyle='white';ctx.fill();} flakes=flakes.filter(f=>f.y<H+10);requestAnimationFrame(loopSnow);}
+loopSnow();
 
-  /* ----------------------------
-     CSS Rain layer is animated by CSS background; nothing to do in JS
-     ---------------------------- */
+/* RAIN CANVAS (image-based) */
+const rainCanvas=document.getElementById('rainCanvas');
+const rctx=rainCanvas.getContext('2d');
+let RW,RH,raindrops=[];
+function resizeRain(){RW=rainCanvas.width=window.innerWidth;RH=rainCanvas.height=window.innerHeight;}
+resizeRain();window.onresize=resizeRain;
 
-  /* ----------------------------
-     UX: prevent text selection
-     ---------------------------- */
-  document.addEventListener('selectstart', e => e.preventDefault());
+const rainImg = new Image();
+rainImg.src = "https://i.imgur.com/yourRainImage.png"; // <-- remplace par ton image
 
-  /* ----------------------------
-     Accessibility: close overlay on ESC if open
-     ---------------------------- */
-  document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape'){
-      // close login modal or trash if open
-      if(document.getElementById('loginModal').style.display === 'flex') document.getElementById('loginModal').style.display='none';
-      if(trashWindow.style.display === 'block') trashWindow.style.display='none';
-      if(noteWindow.style.display === 'block') noteWindow.style.display='none';
-    }
-  });
-  </script>
+function createDrop(){return {x:Math.random()*RW,y:-20,w:rainImg.width,h:rainImg.height,v:Math.random()*4+2};}
+
+function loopRain(){
+  rctx.clearRect(0,0,RW,RH);
+  if(raindrops.length<50) raindrops.push(createDrop());
+  for(let d of raindrops){
+    d.y+=d.v;
+    rctx.drawImage(rainImg,d.x,d.y,d.w,d.h);
+  }
+  raindrops=raindrops.filter(d=>d.y<RH+20);
+  requestAnimationFrame(loopRain);
+}
+rainImg.onload=()=>{loopRain();}
+</script>
+
 </body>
 </html>
